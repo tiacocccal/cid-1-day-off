@@ -39,7 +39,7 @@
       position: fixed; inset: 0; z-index: 20000;
       display: flex; align-items: center; justify-content: center;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      background: linear-gradient(180deg, #ACD6E7 0%, #F7D9CB 55%, #F5BE9D 100%);
+      background: radial-gradient(ellipse at center, #808080 0%, #404040 55%, #080808 100%);
       opacity: 1; visibility: visible;
       transition: opacity .22s ease, visibility .22s ease;
     }
@@ -623,7 +623,7 @@
       else {
         document.getElementById('section-login').style.display = 'block';
         document.getElementById('main-application').style.display = 'none';
-        setThemeColor('#C6D9E8');
+        setThemeColor('#080808');
       }
     }
 
