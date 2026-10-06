@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title></title>
+  <title>偵一隊休假表</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="preload" href="splash-logo.png" as="image" fetchpriority="high">
@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#ACD6E7">
+  <meta name="theme-color" content="#080808">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
@@ -35,12 +35,12 @@
       font-family: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
       margin: 0; padding-bottom: 85px; user-select: none;
     }
-    /* ===== APP 啟動畫面：透明 OCC logo + CSS 全螢幕漸層；主畫面 icon 仍獨立使用 icon.png ===== */
+    /* ===== APP 啟動畫面：透明偵一隊 logo + CSS 全螢幕漸層；主畫面 icon 仍獨立使用 icon.png ===== */
     #app-splash {
       position: fixed; inset: 0; z-index: 20000;
       display: flex; align-items: center; justify-content: center;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-      background: linear-gradient(ellipse at center, #808080 0%, #404040 55%, #080808 100%);
+      background: radial-gradient(ellipse at center, #808080 0%, #404040 55%, #080808 100%);
       opacity: 1; visibility: visible;
       transition: opacity .22s ease, visibility .22s ease;
     }
@@ -55,7 +55,7 @@
     .login-page-bg {
       min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
       padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)) 20px;
-      background: linear-gradient(180deg, #C6D9E8 0%, #F5F2EC 100%);
+      background: radial-gradient(ellipse at center, #808080 0%, #404040 55%, #080808 100%);
     }
     .login-card-custom {
       background: rgba(255, 255, 255, 0.95); border-radius: 24px; padding: 24px;
@@ -146,7 +146,7 @@
 </head>
 <body>
   <div id="app-splash" aria-hidden="true">
-    <img src="splash-logo.png" alt="OCC">
+    <img src="splash-logo.png" alt="偵一隊">
   </div>
   <div id="loading-spinner" class="spinner-overlay" style="display:none;">
     <div class="plane-loader"><i class="fa-solid fa-plane"></i></div>
@@ -178,7 +178,7 @@
     <div id="sticky-header-group">
       <div class="occ-navbar">
         <div class="navbar-brand-box" id="nav-brand-box">
-          <span><i class="fa-solid fa-umbrella-beach"></i> OCC 休假表</span>
+          <span><i class="fa-solid fa-umbrella-beach"></i> 偵一隊休假表</span>
         </div>
       </div>
       <div class="status-bar">
@@ -392,6 +392,13 @@
     </div>
   </div>
 
+  <script>
+    // 獨立保護：即使外部套件或主程式出錯，也不讓 splash 永久遮住頁面。
+    setTimeout(function() {
+      const splash = document.getElementById('app-splash');
+      if (splash) splash.style.display = 'none';
+    }, 4000);
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/zh-tw.global.min.js"></script>
@@ -421,18 +428,21 @@
     let currentDayDetailDate = null;
 
     document.addEventListener("DOMContentLoaded", async function() {
-      checkLoginState();
-      bindDateAutoClose();
-
-      if (currentUser) {
-        applyAdminUI();
-        // 啟動階段由 splash 遮罩呈現，不再顯示飛機動畫。
-        await fetchInitialData({ silent: true });
-        fillDelegateSelects();
+      try {
+        checkLoginState();
+        bindDateAutoClose();
+        // 先顯示可操作的頁面；資料載入不阻擋 splash 關閉。
+        hideAppSplash();
+        if (currentUser) {
+          applyAdminUI();
+          await fetchInitialData();
+          fillDelegateSelects();
+        }
+      } catch (err) {
+        console.error('APP 初始化失敗', err);
+      } finally {
+        hideAppSplash();
       }
-
-      // 未登入時 DOM 準備好就直接顯示登入頁；已登入則等初始資料完成後再淡出。
-      requestAnimationFrame(hideAppSplash);
     });
 
     // ===== 小工具 =====
@@ -566,14 +576,19 @@
     async function fetchInitialData(options = {}) {
       const useOverlay = !options.silent;
       if (useOverlay) showLoading(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
       try {
-        const res = await fetch(GOOGLE_SHEET_API + "?action=getInitialData");
+        const res = await fetch(GOOGLE_SHEET_API + "?action=getInitialData", { signal: controller.signal });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data && data.status === 'error') throw new Error(data.message || '初始資料載入失敗');
         applyInitialData(data);
       } catch (err) {
         console.error("初始資料載入失敗", err);
+        alert('資料載入失敗或連線逾時，請確認網路後重新整理。');
       } finally {
+        clearTimeout(timeoutId);
         showLoading(false);
       }
     }
@@ -620,8 +635,17 @@
     }
 
     function checkLoginState() {
-      const stored = localStorage.getItem('occ_user');
-      if (stored) { currentUser = JSON.parse(stored); showMainApp(); }
+      try {
+        const stored = localStorage.getItem('occ_user');
+        currentUser = stored ? JSON.parse(stored) : null;
+        if (currentUser && (typeof currentUser !== 'object' || !currentUser.account)) {
+          currentUser = null;
+        }
+      } catch (err) {
+        currentUser = null;
+        console.warn('登入狀態無法讀取，請重新登入', err);
+      }
+      if (currentUser) { showMainApp(); }
       else {
         document.getElementById('section-login').style.display = 'block';
         document.getElementById('main-application').style.display = 'none';
