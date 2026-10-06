@@ -1,10 +1,11 @@
-const CACHE_NAME = 'occ-app-v5-final';
+const CACHE_NAME = 'cid1-app-v6-splash-fix-20261006';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon.png',
-  './logo.png'
+  './logo.png',
+  './splash-logo.png'
 ];
 
 self.addEventListener('install', event => {
